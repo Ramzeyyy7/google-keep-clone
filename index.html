@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Keep Clone</title>
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg-body: #ffffff;
+            --text-main: #202124;
+            --card-border: #e0e0e0;
+            --nav-bg: #ffffff;
+            --input-bg: #ffffff;
+        }
+
+        /* AI Feature #1: Dark Mode Theme Variables */
+        [data-theme="dark"] {
+            --bg-body: #202124;
+            --text-main: #e8eaed;
+            --card-border: #5f6368;
+            --nav-bg: #2d2e30;
+            --input-bg: #303134;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Header / Nav */
+        .navbar-custom {
+            background-color: var(--nav-bg);
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        /* Create Note Input Card */
+        .create-note-card {
+            max-width: 600px;
+            margin: 2rem auto;
+            background-color: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .create-note-card input, .create-note-card textarea {
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+        }
+
+        .create-note-card input:focus, .create-note-card textarea:focus {
+            background: transparent;
+            box-shadow: none;
+            color: var(--text-main);
+        }
+
+        /* Color Options Picker */
+        .color-picker-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: inline-block;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+
+        /* Note Colors */
+        .note-default { background-color: var(--input-bg) !important; color: var(--text-main); }
+        .note-red { background-color: #f28b82 !important; color: #202124 !important; }
+        .note-yellow { background-color: #fff475 !important; color: #202124 !important; }
+        .note-green { background-color: #ccff90 !important; color: #202124 !important; }
+        .note-blue { background-color: #cbf0f8 !important; color: #202124 !important; }
+
+        /* Masonry Grid Layout */
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .note-card {
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .note-card:hover {
+            box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation Bar -->
+    <nav class="navbar navbar-custom sticky-top px-3 py-2">
+        <div class="container-fluid d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-journal-text text-warning fs-3"></i>
+                <span class="fs-4 fw-semibold">Keep</span>
+            </div>
+
+            <!-- AI Feature #2: Custom Search Bar -->
+            <div class="flex-grow-1 mx-3 max-width-600" style="max-width: 600px;">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchInput" class="form-control border-secondary text-main" placeholder="Search notes...">
+                </div>
+            </div>
+
+            <!-- AI Feature #1: Dark Mode Toggle -->
+            <button class="btn btn-outline-secondary rounded-circle" id="themeToggleBtn" aria-label="Toggle Theme">
+                <i class="bi bi-moon-stars" id="themeIcon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Base Task: Create Note Input -->
+    <div class="container">
+        <div class="card create-note-card p-3">
+            <input type="text" id="noteTitle" class="form-control fw-bold mb-2" placeholder="Title">
+            <textarea id="noteText" class="form-control mb-3" rows="3" placeholder="Take a note..."></textarea>
+            
+            <div class="d-flex align-items-center justify-content-between">
+                <!-- Manual Feature: Color Selector -->
+                <div class="d-flex gap-2 align-items-center">
+                    <small class="text-secondary me-1">Color:</small>
+                    <span class="color-picker-dot bg-white" onclick="selectColor('note-default')"></span>
+                    <span class="color-picker-dot" style="background:#f28b82" onclick="selectColor('note-red')"></span>
+                    <span class="color-picker-dot" style="background:#fff475" onclick="selectColor('note-yellow')"></span>
+                    <span class="color-picker-dot" style="background:#ccff90" onclick="selectColor('note-green')"></span>
+                    <span class="color-picker-dot" style="background:#cbf0f8" onclick="selectColor('note-blue')"></span>
+                </div>
+                <button class="btn btn-warning fw-bold text-dark px-4" onclick="addNote()">Add Note</button>
+            </div>
+        </div>
+
+        <!-- Base Task: Masonry Notes Grid -->
+        <div class="notes-grid" id="notesContainer">
+            <!-- Dynamic Notes Render Here -->
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let selectedColorClass = 'note-default';
+        let notes = JSON.parse(localStorage.getItem('google_keep_notes')) || [];
+
+        // Manual Feature: Color Selection
+        function selectColor(colorClass) {
+            selectedColorClass = colorClass;
+        }
+
+        // Add Note to localStorage
+        function addNote() {
+            const titleInput = document.getElementById('noteTitle');
+            const textInput = document.getElementById('noteText');
+
+            if (!titleInput.value.trim() && !textInput.value.trim()) return;
+
+            const newNote = {
+                id: Date.now(),
+                title: titleInput.value,
+                text: textInput.value,
+                color: selectedColorClass
+            };
+
+            notes.unshift(newNote);
+            saveAndRender();
+
+            titleInput.value = '';
+            textInput.value = '';
+            selectedColorClass = 'note-default';
+        }
+
+        // Delete Note
+        function deleteNote(id) {
+            notes = notes.filter(note => note.id !== id);
+            saveAndRender();
+        }
+
+        // Save to Local Storage & Render UI
+        function saveAndRender(filterText = '') {
+            localStorage.setItem('google_keep_notes', JSON.stringify(notes));
+            const container = document.getElementById('notesContainer');
+            container.innerHTML = '';
+
+            const filteredNotes = notes.filter(note => 
+                note.title.toLowerCase().includes(filterText.toLowerCase()) || 
+                note.text.toLowerCase().includes(filterText.toLowerCase())
+            );
+
+            filteredNotes.forEach(note => {
+                const noteCard = document.createElement('div');
+                noteCard.className = `card note-card p-3 ${note.color}`;
+                noteCard.innerHTML = `
+                    <h5 class="fw-bold mb-2">${escapeHtml(note.title)}</h5>
+                    <p class="mb-3" style="white-space: pre-wrap;">${escapeHtml(note.text)}</p>
+                    <div class="d-flex justify-content-end mt-auto">
+                        <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteNote(${note.id})" title="Delete Note">
+                            <i class="bi bi-trash fs-5"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(noteCard);
+            });
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        // AI Feature #2: Real-time Search Filtering
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            saveAndRender(e.target.value);
+        });
+
+        // AI Feature #1: Dark Mode Toggle Logic
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = document.body.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                document.body.removeAttribute('data-theme');
+                themeIcon.className = 'bi bi-moon-stars';
+            } else {
+                document.body.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'bi bi-sun-fill text-warning';
+            }
+        });
+
+        // Initial Load
+        saveAndRender();
+    </script>
+</body>
+</html>
